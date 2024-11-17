@@ -527,6 +527,7 @@ def setup_gui():
 	root = ctk.CTk()  # Use CTk instead of Tk for the main window
 	root.title("PDF Text Finder")
 	root.geometry("800x550")  # Set the window size
+	root.resizable(False, False)  # Disable resizing
 	heading_font = ctk.CTkFont(family="Arial", size=14, weight='bold')
 	regular_font = ctk.CTkFont(family="Arial", size=14, weight='bold')
 

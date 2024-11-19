@@ -1,6 +1,6 @@
 import subprocess
-from typing import List, Optional
-import fitz  # PyMuPDF
+from typing import Optional
+import PyPDF2
 import os
 import re
 from pathlib import Path
@@ -8,7 +8,7 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import threading
 from functools import partial
-import zipfile
+# import zipfile
 import winreg
 
 ## TODO:
@@ -144,28 +144,23 @@ def search_text_in_pdf(
 	-------
 	int
 		The number of search results found in the PDF file."""
-	pdf_document = fitz.open(pdf_path)
+	
 	pdf_file: Path = Path(pdf_path)
+	with open(pdf_path, "rb") as file:
+		reader = PyPDF2.PdfReader(file)
 
-	results = []
+		results = []
+		flags = 0 if match_case else re.IGNORECASE
+		search_text = search_text.strip()
+		search_text_original = search_text
+		if whole_word:
+			search_text = rf"\b{search_text}\b"
 
-	flags = 0 if match_case else re.IGNORECASE
-	search_text = search_text.strip()
-	search_text_original = search_text
-	if whole_word:
-		search_text = rf"\b{search_text}\b"
+		for page_num in range(len(reader.pages)):
+			page = reader.pages[page_num]
+			page_text = page.extract_text()
 
-	# Loop through each page
-	for page_num in range(pdf_document.page_count):
-		page = pdf_document.load_page(page_num)
-
-		blocks = page.get_text("blocks")
-
-		for block_index, block in enumerate(blocks):
-			block_text = block[4]
-
-			# Search with the adjusted regex pattern
-			if re.search(search_text, block_text, flags):
+			if re.search(search_text, page_text, flags):
 				if search_text_original is None:
 					search_text_original = search_text
 				results.append(
@@ -236,10 +231,10 @@ def search_text_in_pdf(
 			)
 			count += 1
 
-		pdf_document.close()
+		# pdf_document.close()
 		return count
 	else:
-		pdf_document.close()
+		# pdf_document.close()
 		return 0
 
 
@@ -255,80 +250,80 @@ def open_pdf(pdf_path: str, event=None) -> None:
 		The event that triggered the function call."""
 	os.startfile(pdf_path)
 
-def open_pdfs_from_zip(
-	zip_path: str, 
-	search_text: str, 
-	/,
-	match_case: bool = False, 
-	whole_word: bool = False, 
-	results_text_widget: ctk.CTkTextbox = None, 
-	include_subdirs: bool = False, 
-	count: int = 0
-) -> None:
-	"""Open a ZIP file and search for text in each PDF file.
+# def open_pdfs_from_zip(
+# 	zip_path: str, 
+# 	search_text: str, 
+# 	/,
+# 	match_case: bool = False, 
+# 	whole_word: bool = False, 
+# 	results_text_widget: ctk.CTkTextbox = None, 
+# 	include_subdirs: bool = False, 
+# 	count: int = 0
+# ) -> None:
+# 	"""Open a ZIP file and search for text in each PDF file.
 	
-	Parameters
-	----------
-	zip_path : str
-		Path to the ZIP file to open.
+# 	Parameters
+# 	----------
+# 	zip_path : str
+# 		Path to the ZIP file to open.
 		
-	search_text : str
-		Text to search for in the PDF files.
+# 	search_text : str
+# 		Text to search for in the PDF files.
 		
-	match_case : bool
-		Whether to match the case of the search text.
+# 	match_case : bool
+# 		Whether to match the case of the search text.
 		
-	whole_word : bool
-		Whether to search for the whole word only.
+# 	whole_word : bool
+# 		Whether to search for the whole word only.
 		
-	results_text_widget : ctk.CTkTextbox
-		The text widget to display the search results.
+# 	results_text_widget : ctk.CTkTextbox
+# 		The text widget to display the search results.
 		
-	include_subdirs : bool
-		Whether to include subdirectories in the search.
+# 	include_subdirs : bool
+# 		Whether to include subdirectories in the search.
 		
-	count : int
-		The number of search results found in the PDF files."""
+# 	count : int
+# 		The number of search results found in the PDF files."""
 		
-	try:
-		with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-			pdf_files = [
-				file for file in zip_ref.namelist() if file.endswith(".pdf")
-			]
+# 	try:
+# 		with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+# 			pdf_files = [
+# 				file for file in zip_ref.namelist() if file.endswith(".pdf")
+# 			]
 
-			for pdf_file in pdf_files:
-				with zip_ref.open(pdf_file) as pdf_file_ref:
-					search_text_in_pdf(pdf_file_ref, search_text, match_case, 
-						whole_word, results_text_widget, include_subdirs)
-	except FileNotFoundError:
-		return f"Error: The file {zip_path} does not exist."
-	except zipfile.BadZipFile:
-		return "Error: The file is not a valid zip file."
+# 			for pdf_file in pdf_files:
+# 				with zip_ref.open(pdf_file) as pdf_file_ref:
+# 					search_text_in_pdf(pdf_file_ref, search_text, match_case, 
+# 						whole_word, results_text_widget, include_subdirs)
+# 	except FileNotFoundError:
+# 		return f"Error: The file {zip_path} does not exist."
+# 	except zipfile.BadZipFile:
+# 		return "Error: The file is not a valid zip file."
 
-def list_files_in_zip(zip_path: str) -> List[str]:
-	"""List the files in a ZIP archive.
+# def list_files_in_zip(zip_path: str) -> List[str]:
+# 	"""List the files in a ZIP archive.
 
-	Parameters
-	----------
-	zip_path : str
-		Path to the ZIP file to list the files of.
+# 	Parameters
+# 	----------
+# 	zip_path : str
+# 		Path to the ZIP file to list the files of.
 
-	Returns
-	-------
-	list[str]
-		A list of file names in the ZIP archive."""
-	try:
-		with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-			files = [
-				file for file in zip_ref.namelist() if file.endswith(".pdf")
-			]
-			return files
-	except FileNotFoundError:
-		raise FileNotFoundError(f"Error: The file {zip_path} does not exist")
-	except zipfile.BadZipFile:
-		raise zipfile.BadZipFile("Error: The file is not a valid zip file")
-	finally:
-		return []
+# 	Returns
+# 	-------
+# 	list[str]
+# 		A list of file names in the ZIP archive."""
+# 	try:
+# 		with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+# 			files = [
+# 				file for file in zip_ref.namelist() if file.endswith(".pdf")
+# 			]
+# 			return files
+# 	except FileNotFoundError:
+# 		raise FileNotFoundError(f"Error: The file {zip_path} does not exist")
+# 	except zipfile.BadZipFile:
+# 		raise zipfile.BadZipFile("Error: The file is not a valid zip file")
+# 	finally:
+# 		return []
 
 # Function to iterate over directory and search text in each PDF
 def iterate_over_directory(
@@ -371,18 +366,18 @@ def iterate_over_directory(
 			]
 
 	total_pdf_files = len(pdf_files)
-	if len(zip_files) != 0:
-		for zip_file in zip_files:
-			total_pdf_files += len(list_files_in_zip(zip_file))
-			open_pdfs_from_zip(
-				zip_file, 
-				search_text, 
-				match_case, 
-				whole_word, 
-				results_text_widget, 
-				include_subdirs, 
-				count
-			)
+	# if len(zip_files) != 0:
+	# 	for zip_file in zip_files:
+	# 		total_pdf_files += len(list_files_in_zip(zip_file))
+	# 		open_pdfs_from_zip(
+	# 			zip_file, 
+	# 			search_text, 
+	# 			match_case, 
+	# 			whole_word, 
+	# 			results_text_widget, 
+	# 			include_subdirs, 
+	# 			count
+	# 		)
 
 	if total_pdf_files == 0:
 		messagebox.showinfo(
@@ -586,7 +581,8 @@ def setup_gui():
 		root, 
 		text="Search in ZIP files", 
 		variable=zip_var, 
-		font=regular_font
+		font=regular_font,
+		state="disabled"
 	)
 	zip_check.grid(row=3, column=1, padx=10, pady=10, sticky="w")
 

@@ -1,2 +1,11 @@
 .venv/
 pdfs/
+build/
+.idea/
+dist/
+*.ico
+*.log
+*.lnk
+*.zip
+*.spec
+.gitignore
